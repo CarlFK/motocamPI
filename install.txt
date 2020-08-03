@@ -1,0 +1,62 @@
+
+First install the UV4L raspicam drivers.
+
+On Raspbian Stretch, type:
+
+$ curl http://www.linux-projects.org/listing/uv4l_repo/lpkey.asc | sudo apt-key add -
+and add the following line to the file /etc/apt/sources.list:
+
+deb http://www.linux-projects.org/listing/uv4l_repo/raspbian/stretch stretch main
+Finally, we are ready to update the system and to fetch and install the packages:
+
+$ sudo apt-get update
+$ sudo apt-get install uv4l uv4l-raspicam
+The above two commands will upgrade UV4L to the most recent version, if it’s already installed.
+
+If you want the driver to be loaded at boot, also install this optional package:
+
+$ sudo apt-get install uv4l-raspicam-extras
+As a convenience, the above package will install a service script for starting, stopping or restarting the driver at any time, for example:
+
+$ sudo service uv4l_raspicam restart
+When (re)starting the service, uv4l will be instructed to parse the configuration file /etc/uv4l/uv4l-raspicam.conf to get the default values for the driver and the server options. You can edit that file to add, remove or change the default values. This same service is started at boot.
+
+Now the UV4L core module and the Video4Linux2 driver for the CSI Camera Board are installed. If you occasionally get unexpected errors from the driver, make sure the camera is enabled and enough memory is reserved for the GPU (256MB or more is suggested) from this menu:
+
+$ sudo raspi-config
+Also consider updating the firmware with the following command:
+
+$ sudo rpi-update
+For detailed informations, options, etc… about the modules installed type accordingly:
+
+$ man uv4l
+$ man uv4l-raspicam
+To get the list of all available options:
+
+$ uv4l --help --driver raspicam --driver-help
+
+
+Next make a RTSP stream.
+
+Install the required packages:
+
+raspberrypi ~ $ sudo apt-get install vlc
+Run UV4L with the raspicam driver:
+
+raspberrypi ~ $ uv4l --driver raspicam --auto-video_nr --framerate 25 --encoding=h264 --extension-presence=0
+ [core] Device detected!
+ [core] Registering device node /dev/video0
+Optionally give a real-time scheduling policy to the driver process for better performance (which is the same as running uv4l with sudo uv4l –sched-rr):
+
+raspberrypi ~ $ sudo chrt -a -r -p 99 `pgrep uv4l`
+Run the real-time VideoLan streaming server on your Raspberry Pi with the preferred resolution:
+
+raspberrypi ~ $ cvlc -vvv v4l2c:///dev/video0:width=640:height=480:chroma=H264 --sout '#rtp{sdp=rtsp://:8554/}' --demux h264
+although more appropriate in theory, the above command has been reported to leak memory because of some buggy versions of cvlc. If this is the case, try the following alternative command to run the server:
+
+raspberrypi ~ $ dd if=/dev/video0 bs=1M | cvlc -vvv stream:///dev/stdin --sout '#rtp{sdp=rtsp://:8554/}' --demux=h264
+Now you can connect to your Raspberry Pi from the client, for example (don’t forget the final slash):
+
+mypc ~ $ vlc rtsp://raspberrypi:8554/
+where raspberrypi is the host name or IP of your RaspberryPi.
+
